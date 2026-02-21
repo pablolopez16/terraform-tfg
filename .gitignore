@@ -17,6 +17,7 @@ override.tf.json
 # Maven/Java
 aws-lambda-01/target/
 aws-lambda-01/dependency-reduced-pom.xml
+aws-lambda-01/src/main/resources/credentials.json
 *.class
 *.jar
 *.war
