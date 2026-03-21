@@ -4,7 +4,7 @@
                              http://maven.apache.org/xsd/maven-4.0.0.xsd">
 
     <modelVersion>4.0.0</modelVersion>
-     <parent>
+    <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
         <version>3.2.2</version>
@@ -21,15 +21,14 @@
     </properties>
 
     <dependencies>
-        <!--<dependency>
-            <groupId>com.amazonaws</groupId>
-            <artifactId>aws-lambda-java-core</artifactId>
-            <version>1.2.3</version>
-        </dependency>-->
+
+        <!-- Spring Boot Web -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
+
+        <!-- Google Calendar API -->
         <dependency>
             <groupId>com.google.api-client</groupId>
             <artifactId>google-api-client</artifactId>
@@ -38,7 +37,7 @@
         <dependency>
             <groupId>com.google.apis</groupId>
             <artifactId>google-api-services-calendar</artifactId>
-            <version>v3-rev20220715-2.0.0</version> 
+            <version>v3-rev20220715-2.0.0</version>
         </dependency>
         <dependency>
             <groupId>com.google.oauth-client</groupId>
@@ -55,16 +54,30 @@
             <artifactId>google-auth-library-oauth2-http</artifactId>
             <version>1.19.0</version>
         </dependency>
+
+        <!-- CalDAV — cliente HTTP -->
+        <dependency>
+            <groupId>org.apache.httpcomponents.client5</groupId>
+            <artifactId>httpclient5</artifactId>
+            <version>5.3.1</version>
+        </dependency>
+
+        <!-- CalDAV — parser ICS (solo una versión) -->
+        <dependency>
+            <groupId>org.mnode.ical4j</groupId>
+            <artifactId>ical4j</artifactId>
+            <version>3.1.0</version>
+        </dependency>
+
     </dependencies>
 
-   <build>
+    <build>
         <plugins>
-            <!-- Plugin oficial Spring Boot -->
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
             </plugin>
         </plugins>
     </build>
-    
+
 </project>
