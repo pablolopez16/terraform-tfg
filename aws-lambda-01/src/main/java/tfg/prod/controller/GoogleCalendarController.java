@@ -1,4 +1,4 @@
-package tfg.prod;
+package tfg.prod.controller;
 
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.auth.oauth2.TokenResponseException;
@@ -15,7 +15,10 @@ import com.google.api.services.calendar.Calendar;
 import com.google.api.services.calendar.CalendarScopes;
 import com.google.api.services.calendar.model.Event;
 import com.google.api.services.calendar.model.Events;
+
+import tfg.prod.CredentialsLoader;
 import tfg.prod.modules.*;
+import tfg.prod.services.GoogleTokenService;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -38,6 +41,12 @@ public class GoogleCalendarController {
     String clientSecret = creds.getClient_secret();
     String redirectUri = creds.getRedirect_uri();
     String scopes = String.join(" ", creds.getScopes());
+
+    private final GoogleTokenService tokenService;
+
+    public GoogleCalendarController(GoogleTokenService tokenService) {
+        this.tokenService = tokenService;
+    }
 
 @GetMapping("/auth/google")
 public ResponseEntity<String> redirectToGoogle() {
@@ -77,14 +86,11 @@ public ResponseEntity<String> handleGoogleCallback(@RequestParam String code) {
         // Obtenemos el access token y refresh token
         String accessToken = tokenResponse.getAccessToken();
         String refreshToken = tokenResponse.getRefreshToken();
+        tokenService.saveToken(tokenResponse);
 
-        return ResponseEntity.ok(
-                "Access Token: " + accessToken + "\n" +
-                "Refresh Token: " + refreshToken
-        );
+        return ResponseEntity.ok("Token guardado correctamente");
 
     } catch (TokenResponseException e) {
-        // ← Este catch te dirá exactamente qué falla (redirect_uri_mismatch, invalid_client, etc.)
         System.out.println("=== Token Error ===");
         System.out.println("Detalle: " + e.getDetails());
         System.out.println("Mensaje: " + e.getMessage());
