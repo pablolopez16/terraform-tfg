@@ -28,15 +28,6 @@ resource "aws_apigatewayv2_api" "api-gateway-tfg" {
   name          = "api-gateway-tfg"
   protocol_type = "HTTP"
 }
-resource "aws_apigatewayv2_authorizer" "api-gateaway-authorizer" {
-  api_id                            = aws_apigatewayv2_api.api-gateway-tfg.id
-  authorizer_type                   = "REQUEST"
-  authorizer_uri                    = aws_lambda_function.aws-lambda-tfg.invoke_arn
-  identity_sources                  = ["$request.header.Authorization"]
-  name                              = "eapi-gateaway-authorizer"
-  authorizer_payload_format_version = "2.0"
-}
-
 
 // Connects API Gateaway with Lambda
 resource "aws_apigatewayv2_integration" "lambda_integration" {
