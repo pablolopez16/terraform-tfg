@@ -39,9 +39,9 @@ resource "aws_apigatewayv2_integration" "lambda_integration" {
 
 resource "aws_apigatewayv2_route" "api-gateaway-route" {
   api_id    = aws_apigatewayv2_api.api-gateway-tfg.id
-  route_key = "GET /calendars"
-  target    = "integrations/${aws_apigatewayv2_integration.lambda_integration.id}"
-
+  route_key = "$default" // Para que Spring Boot gestione todas las rutas
+  // De esta manera no hace falta crear muchos recursos uno para cada llamada
+  target = "integrations/${aws_apigatewayv2_integration.lambda_integration.id}"
 }
 
 // Permissions for API Gateaway to invoke Lambda
