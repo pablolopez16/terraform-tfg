@@ -7,13 +7,15 @@ resource "aws_lambda_function" "aws-lambda-tfg" {
 
   s3_bucket        = aws_s3_bucket.aws-lambda-tfg-bucket.bucket
   s3_key           = aws_s3_object.lambda_jar.key
-  source_code_hash = aws_s3_object.lambda_jar.etag /*para detectar cambios automaticamente*/
+  source_code_hash = filebase64sha256(var.lambda_jar_path) /*para detectar cambios automaticamente*/
   timeout          = 30
 }
 resource "aws_s3_object" "lambda_jar" {
   bucket = aws_s3_bucket.aws-lambda-tfg-bucket.bucket
   key    = "tfg/lambda_function_code/lambda-1.0.0.jar"
   source = var.lambda_jar_path
+  etag =  filemd5(var.lambda_jar_path) // para que se cambie cuando sea
+  
 }
 
 resource "aws_s3_bucket" "aws-lambda-tfg-bucket" {
