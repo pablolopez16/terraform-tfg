@@ -8,6 +8,7 @@ resource "aws_lambda_function" "aws-lambda-tfg" {
   s3_bucket        = aws_s3_bucket.aws-lambda-tfg-bucket.bucket
   s3_key           = aws_s3_object.lambda_jar.key
   source_code_hash = filebase64sha256(var.lambda_jar_path) /*para detectar cambios automaticamente*/
+  memory_size = 512
   timeout          = 30
 }
 resource "aws_s3_object" "lambda_jar" {
@@ -37,6 +38,7 @@ resource "aws_apigatewayv2_integration" "lambda_integration" {
   integration_type   = "AWS_PROXY"
   integration_uri    = aws_lambda_function.aws-lambda-tfg.invoke_arn
   integration_method = "POST"
+  payload_format_version = "2.0"
 }
 
 resource "aws_apigatewayv2_route" "api-gateaway-route" {
@@ -58,7 +60,7 @@ resource "aws_lambda_permission" "api-gateway-permissions" {
 // Stage : Version publicada de mi api
 resource "aws_apigatewayv2_stage" "api-gateway-stage" {
   api_id      = aws_apigatewayv2_api.api-gateway-tfg.id
-  name        = "PROD"
+  name        = "$default"// para que aws no añada prefijo al path
   auto_deploy = true
 
 
