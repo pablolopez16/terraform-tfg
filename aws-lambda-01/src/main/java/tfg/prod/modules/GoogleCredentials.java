@@ -6,7 +6,7 @@ public class GoogleCredentials {
 
     private String client_id;
     private String client_secret;
-    private String redirect_uri;//uri a la que se envian las resopuestas de los datos recogidos por la llamada
+    //private String redirect_uri;//uri a la que se envian las resopuestas de los datos recogidos por la llamada
     private List<String> scopes;
 
     // getters y setters
@@ -26,14 +26,14 @@ public class GoogleCredentials {
         this.client_secret = client_secret;
     }
 
-    public String getRedirect_uri() {
+    /*public String getRedirect_uri() {
         return redirect_uri;
     }
 
     public void setRedirect_uri(String redirect_uri) {
         this.redirect_uri = redirect_uri;
     }
-
+*/
     public List<String> getScopes() {
         return scopes;
     }

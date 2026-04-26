@@ -1,52 +1,52 @@
 package tfg.prod.services;
 
-import net.fortuna.ical4j.data.CalendarBuilder;
-import net.fortuna.ical4j.model.Calendar;
-import net.fortuna.ical4j.model.Component;
-import net.fortuna.ical4j.model.component.VEvent;
-import net.fortuna.ical4j.model.property.*;
+import org.springframework.stereotype.Service;
 
-import org.apache.hc.client5.http.classic.methods.HttpPost;
-import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
-import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
-import org.apache.hc.client5.http.impl.classic.HttpClients;
-import org.apache.hc.core5.http.ContentType;
-import org.apache.hc.core5.http.io.entity.EntityUtils;
-import org.apache.hc.core5.http.io.entity.StringEntity;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
-import tfg.prod.services.CalDavSessionService;
-
-import java.io.StringReader;
-import java.nio.charset.StandardCharsets;
-import java.util.*;
-@RestController
-@RequestMapping("/caldav")
+@Service
 public class CalDavSessionService {
 
-    private String username;
-    private String password;
-    private String serverUrl;
-
-    public void saveSession(String username, String password, String serverUrl) {
-        this.username  = username;
-        this.password  = password;
-        this.serverUrl = serverUrl.endsWith("/") ? serverUrl.substring(0, serverUrl.length() - 1) : serverUrl;
+    private static class CalDavSession {
+        final String username, password, serverUrl;
+        CalDavSession(String u, String p, String s) {
+            this.username  = u;
+            this.password  = p;
+            this.serverUrl = s.endsWith("/") ? s.substring(0, s.length() - 1) : s;
+        }
     }
 
-    public String getUsername()  { return username; }
-    public String getPassword()  { return password; }
-    public String getServerUrl() { return serverUrl; }
+    private final Map<String, CalDavSession> sessions = new ConcurrentHashMap<>();
+    private final DynamoDbService dynamoDbService;
 
-    public boolean hasSession() {
-        return username != null && password != null && serverUrl != null;
+    public CalDavSessionService(DynamoDbService dynamoDbService) {
+        this.dynamoDbService = dynamoDbService;
     }
 
-    public void clearSession() {
-        this.username  = null;
-        this.password  = null;
-        this.serverUrl = null;
+    public void saveSession(String accountId, String username, String password, String serverUrl) {
+        String url = serverUrl.endsWith("/") ? serverUrl.substring(0, serverUrl.length() - 1) : serverUrl;
+        sessions.put(accountId, new CalDavSession(username, password, url));
+        dynamoDbService.saveCalDavSession(accountId, username, password, url);
+    }
+
+    public String getUsername(String accountId)  { CalDavSession s = loadSession(accountId); return s != null ? s.username  : null; }
+    public String getPassword(String accountId)  { CalDavSession s = loadSession(accountId); return s != null ? s.password  : null; }
+    public String getServerUrl(String accountId) { CalDavSession s = loadSession(accountId); return s != null ? s.serverUrl : null; }
+
+    public boolean hasSession(String accountId) { return loadSession(accountId) != null; }
+
+    private CalDavSession loadSession(String accountId) {
+        if (sessions.containsKey(accountId)) return sessions.get(accountId);
+        Map<String, String> data = dynamoDbService.getCalDavSession(accountId);
+        if (data == null || data.get("username") == null) return null;
+        CalDavSession session = new CalDavSession(data.get("username"), data.get("password"), data.get("serverUrl"));
+        sessions.put(accountId, session);
+        return session;
+    }
+
+    public void clearSession(String accountId) {
+        sessions.remove(accountId);
+        dynamoDbService.deleteAccount(accountId);
     }
 }

@@ -65,5 +65,33 @@ resource "aws_apigatewayv2_stage" "api-gateway-stage" {
 
 
 }
+#region DynamboDB
+resource "aws_dynamodb_table" "calendar_accounts" {
+  name         = "tfg-calendar-accounts"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "account_id"
+   attribute {
+    name = "account_id"
+    type = "S"
+  }
+  tags = {
+    Name = "tfg-calendar-accounts"
+  }
+}
 
+// Política IAM para que Lambda acceda a DynamoDB
+resource "aws_iam_role_policy" "lambda_dynamodb" {
+  name = "lambda-dynamodb-policy"
+  role = data.aws_iam_role.lambda_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:DeleteItem"]
+      Resource = aws_dynamodb_table.calendar_accounts.arn
+    }]
+  })
+}
+#endregion
 
