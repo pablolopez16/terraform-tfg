@@ -10,6 +10,11 @@ resource "aws_lambda_function" "aws-lambda-tfg" {
   source_code_hash = filebase64sha256(var.lambda_jar_path) /*para detectar cambios automaticamente*/
   memory_size = 512
   timeout          = 30
+  environment {
+  variables = {
+    DYNAMODB_TABLE = aws_dynamodb_table.calendar_accounts.name
+  }
+  }
 }
 resource "aws_s3_object" "lambda_jar" {
   bucket = aws_s3_bucket.aws-lambda-tfg-bucket.bucket
