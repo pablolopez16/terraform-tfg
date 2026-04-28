@@ -13,7 +13,9 @@ resource "aws_lambda_function" "aws-lambda-tfg" {
   environment {
   variables = {
     DYNAMODB_TABLE = aws_dynamodb_table.calendar_accounts.name
+     DYNAMODB_MERGE_TABLE = aws_dynamodb_table.merge_configs.name
   }
+
   }
 }
 resource "aws_s3_object" "lambda_jar" {
@@ -35,6 +37,13 @@ resource "aws_s3_bucket" "aws-lambda-tfg-bucket" {
 resource "aws_apigatewayv2_api" "api-gateway-tfg" {
   name          = "api-gateway-tfg"
   protocol_type = "HTTP"
+
+   cors_configuration {
+    allow_origins = ["*"]   # cambiar a la URL del S3 frontend cuando esté listo
+    allow_methods = ["GET", "POST", "DELETE", "OPTIONS"]
+    allow_headers = ["Content-Type", "Authorization"]
+    max_age       = 300
+  }
 }
 
 // Connects API Gateaway with Lambda
@@ -125,4 +134,49 @@ resource "aws_iam_role_policy" "lambda_dynamodb_merge" {
   })
 }
 #endregion
+
+
+#region FrontEnd
+# S3 para frontend SPA Angular
+resource "aws_s3_bucket" "frontend" {
+  bucket = "aws-tfg-frontend-plfz"
+}
+
+resource "aws_s3_bucket_public_access_block" "frontend" {
+  bucket                  = aws_s3_bucket.frontend.id
+  block_public_acls       = false
+  block_public_policy     = false
+  ignore_public_acls      = false
+  restrict_public_buckets = false
+}
+
+resource "aws_s3_bucket_website_configuration" "frontend" {
+  bucket = aws_s3_bucket.frontend.id
+  index_document { suffix = "index.html" }
+  error_document  { key    = "index.html" }
+}
+
+resource "aws_s3_bucket_policy" "frontend" {
+  bucket     = aws_s3_bucket.frontend.id
+  depends_on = [aws_s3_bucket_public_access_block.frontend]
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = "*"
+      Action    = "s3:GetObject"
+      Resource  = "${aws_s3_bucket.frontend.arn}/*"
+    }]
+  })
+}
+
+output "frontend_url" {
+  value = aws_s3_bucket_website_configuration.frontend.website_endpoint
+}
+
+output "api_url" {
+  value = aws_apigatewayv2_stage.api-gateway-stage.invoke_url
+}
+#endregion
+
 
