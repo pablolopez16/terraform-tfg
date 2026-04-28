@@ -83,6 +83,18 @@ resource "aws_dynamodb_table" "calendar_accounts" {
     Name = "tfg-calendar-accounts"
   }
 }
+resource "aws_dynamodb_table" "merge_configs" {
+  name         = "tfg-merge-configs"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "merge_id"
+   attribute {
+    name = "merge_id"
+    type = "S"
+  }
+  tags = {
+    Name = "tfg-merge-configs"
+  }
+}
 
 // Política IAM para que Lambda acceda a DynamoDB
 resource "aws_iam_role_policy" "lambda_dynamodb" {
@@ -95,6 +107,20 @@ resource "aws_iam_role_policy" "lambda_dynamodb" {
       Effect   = "Allow"
       Action   = ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:DeleteItem"]
       Resource = aws_dynamodb_table.calendar_accounts.arn
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "lambda_dynamodb_merge" {
+  name = "lambda-dynamodb-merge-policy"
+  role = data.aws_iam_role.lambda_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:DeleteItem"]
+      Resource = aws_dynamodb_table.merge_configs.arn
     }]
   })
 }

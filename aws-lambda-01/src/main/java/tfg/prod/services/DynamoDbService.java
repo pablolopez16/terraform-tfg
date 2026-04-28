@@ -14,13 +14,15 @@ public class DynamoDbService {
 
     private final DynamoDbClient client;
     private final String tableName;
+    private final String mergeTable;
 
     public DynamoDbService() {
-        this.client = DynamoDbClient.builder()
-                .httpClient(UrlConnectionHttpClient.create())
-                .build();
-        this.tableName = System.getenv("DYNAMODB_TABLE");
-    }
+    this.client = DynamoDbClient.builder()
+            .httpClient(UrlConnectionHttpClient.create())
+            .build();
+    this.tableName  = System.getenv("DYNAMODB_TABLE");
+    this.mergeTable = System.getenv("DYNAMODB_MERGE_TABLE"); // ← añadir
+}
 
     public void saveGoogleToken(String accountId, String refreshToken) {
         client.putItem(PutItemRequest.builder()
@@ -80,4 +82,30 @@ public class DynamoDbService {
                 .key(Map.of("account_id", AttributeValue.fromS(accountId)))
                 .build());
     }
+    // Añadir al final de la clase:
+        public void saveMergeConfig(String mergeId, String configJson) {
+        client.putItem(PutItemRequest.builder()
+                .tableName(mergeTable)
+                .item(Map.of(
+                        "merge_id",   AttributeValue.fromS(mergeId),
+                        "config",     AttributeValue.fromS(configJson),
+                        "created_at", AttributeValue.fromS(java.time.Instant.now().toString())
+                ))
+                .build());
+        }
+        public String getMergeConfig(String mergeId) {
+        GetItemResponse r = client.getItem(GetItemRequest.builder()
+                .tableName(mergeTable)
+                .key(Map.of("merge_id", AttributeValue.fromS(mergeId)))
+                .build());
+        if (!r.hasItem()) return null;
+        AttributeValue v = r.item().get("config");
+        return v != null ? v.s() : null;
+}
+        public void deleteMergeConfig(String mergeId) {
+        client.deleteItem(DeleteItemRequest.builder()
+                .tableName(mergeTable)
+                .key(Map.of("merge_id", AttributeValue.fromS(mergeId)))
+                .build());
+        }
 }
