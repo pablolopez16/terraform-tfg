@@ -1,0 +1,18 @@
+<div style="padding:2rem;">
+  <h1>Mis calendarios fusionados</h1>
+  <a routerLink="/merge/new">+ Nueva fusión</a>
+
+  <div *ngIf="merges.length === 0" style="margin-top:1rem;">
+    No tienes ninguna fusión creada todavía.
+  </div>
+
+  <ul style="margin-top:1rem; list-style:none; padding:0;">
+    <li *ngFor="let m of merges" style="margin-bottom:1rem; border:1px solid #ccc; padding:1rem;">
+      <strong>{{ m.merge_id }}</strong>
+      <div>
+        URL ICS: <a [href]="getIcsUrl(m.merge_id)" target="_blank">{{ getIcsUrl(m.merge_id) }}</a>
+      </div>
+      <button (click)="delete(m.merge_id)" style="margin-top:0.5rem; color:red;">Eliminar</button>
+    </li>
+  </ul>
+</div>
