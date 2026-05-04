@@ -4,4 +4,5 @@ export interface MergeConfig {
   mergeId?: string;
   sources: MergeSource[];
   maxResultsPerCalendar?: number;
+  refreshIntervalMinutes?: number;
 }

@@ -7,6 +7,10 @@ import { Observable } from 'rxjs';
 export class MergeService {
   constructor(private api: ApiService) {}
 
+  list(): Observable<any[]> {
+    return this.api.http.get<any[]>(`${this.api.base}/merge`);
+  }
+
   create(config: MergeConfig): Observable<{ merge_id: string; ics_url: string }> {
     return this.api.http.post<any>(`${this.api.base}/merge`, config);
   }
