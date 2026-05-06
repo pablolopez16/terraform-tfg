@@ -14,6 +14,7 @@ resource "aws_lambda_function" "aws-lambda-tfg" {
   variables = {
     DYNAMODB_TABLE = aws_dynamodb_table.calendar_accounts.name
      DYNAMODB_MERGE_TABLE = aws_dynamodb_table.merge_configs.name
+     GOOGLE_CREDENTIALS_SECRET_ARN  = aws_secretsmanager_secret.google_credentials.arn
   }
 
   }
@@ -41,7 +42,7 @@ resource "aws_apigatewayv2_api" "api-gateway-tfg" {
   protocol_type = "HTTP"
 
    cors_configuration {
-    allow_origins = ["http://aws-tfg-frontend-plfz.s3-website-us-east-1.amazonaws.com"]   # cambiar a la URL del S3 frontend cuando esté listo
+    allow_origins = ["http://aws-tfg-frontend-plfz.s3-website-us-east-1.amazonaws.com","http://localhost:4200"]   # cambiar a la URL del S3 frontend cuando esté listo
     allow_methods = ["GET", "POST", "DELETE", "OPTIONS"]
     allow_headers = ["Content-Type", "Authorization"]
     max_age       = 300
