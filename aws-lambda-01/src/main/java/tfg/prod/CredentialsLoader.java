@@ -1,28 +1,33 @@
 package tfg.prod;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient;
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
+import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
 import tfg.prod.modules.GoogleCredentials;
-
-import java.io.InputStream;
 
 public class CredentialsLoader {
 
     public static GoogleCredentials load() {
         try {
-            ObjectMapper mapper = new ObjectMapper();
-
-            InputStream is = CredentialsLoader.class
-                    .getClassLoader()
-                    .getResourceAsStream("credentials.json");
-
-            if (is == null) {
-                throw new RuntimeException("credentials.json no encontrado en resources");
+            String secretArn = System.getenv("GOOGLE_CREDENTIALS_SECRET_ARN");
+            if (secretArn == null || secretArn.isBlank()) {
+                throw new RuntimeException("Variable de entorno GOOGLE_CREDENTIALS_SECRET_ARN no definida");
             }
 
-            return mapper.readValue(is, GoogleCredentials.class);
+            SecretsManagerClient client = SecretsManagerClient.builder()
+                    .httpClientBuilder(UrlConnectionHttpClient.builder())
+                    .build();
+
+            GetSecretValueResponse response = client.getSecretValue(
+                    GetSecretValueRequest.builder().secretId(secretArn).build()
+            );
+
+            return new ObjectMapper().readValue(response.secretString(), GoogleCredentials.class);
 
         } catch (Exception e) {
-            throw new RuntimeException("Error cargando credentials.json", e);
+            throw new RuntimeException("Error cargando credenciales de Google desde Secrets Manager", e);
         }
     }
 }

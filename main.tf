@@ -1,4 +1,4 @@
-//Creacion Lambda
+#region Lambda
 resource "aws_lambda_function" "aws-lambda-tfg" {
   function_name = "aws-lambda-tfg"
   role          = data.aws_iam_role.lambda_role.arn
@@ -33,6 +33,8 @@ resource "aws_s3_bucket" "aws-lambda-tfg-bucket" {
   }
 
 }
+
+#endregion
 #region API GateAway
 resource "aws_apigatewayv2_api" "api-gateway-tfg" {
   name          = "api-gateway-tfg"
@@ -178,5 +180,31 @@ output "api_url" {
   value = aws_apigatewayv2_stage.api-gateway-stage.invoke_url
 }
 #endregion
+
+#region Secrets Manager
+
+resource "aws_secretsmanager_secret" "google_credentials" {
+  name        = "tfg/google-credentials"
+  description = "Credenciales OAuth2 de Google Calendar API (client_id, client_secret, scopes)"
+}
+resource "aws_secretsmanager_secret_version" "google_credentials" {
+  secret_id     = aws_secretsmanager_secret.google_credentials.id
+  secret_string = var.google_credentials_json
+}
+
+resource "aws_iam_role_policy" "lambda_secrets_manager" {
+  name = "lambda-secrets-manager-policy"
+  role = data.aws_iam_role.lambda_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["secretsmanager:GetSecretValue"]
+      Resource = aws_secretsmanager_secret.google_credentials.arn
+    }]
+  })
+}
+#endregion 
 
 
