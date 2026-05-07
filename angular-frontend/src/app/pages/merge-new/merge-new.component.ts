@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { MergeService } from '../../core/services/merge.service';
 import { MergeSource } from '../../models/merge-source.model';
+import { CalDavService } from '../../core/services/caldav.service';
 import { GoogleCalendarService } from '../../core/services/google-calendar.service';
 
 @Component({
@@ -11,82 +12,101 @@ import { GoogleCalendarService } from '../../core/services/google-calendar.servi
   standalone: true,
   imports: [CommonModule, FormsModule],
   template: `
-    <div style="padding:2rem;">
-      <h1>Nueva fusión de calendarios</h1>
+    <div class="page">
+      <h1 class="page-title">➕ Nueva fusión</h1>
+      <p class="page-subtitle">Combina varios calendarios en uno</p>
 
-      <div style="max-width:600px; margin-top:1.5rem; display:flex; flex-direction:column; gap:1rem;">
-
+      <div class="card">
         <h2>Calendarios fuente</h2>
 
-        <div *ngFor="let s of sources; let i = index"
-             style="border:1px solid #ccc; padding:1rem; border-radius:8px; display:flex; flex-direction:column; gap:0.5rem;">
-          <label>Proveedor</label>
-          <select [(ngModel)]="s.provider" (ngModelChange)="onProviderChange(i)">
-            <option value="google">Google Calendar</option>
-            <option value="caldav">CalDAV</option>
-          </select>
+        <div *ngFor="let s of sources; let i = index" class="source-card">
+          <div class="form-group">
+            <label>Proveedor</label>
+            <select [(ngModel)]="s.provider" (ngModelChange)="onProviderChange(i)">
+              <option value="google">🔵 Google Calendar</option>
+              <option value="caldav">📆 CalDAV</option>
+            </select>
+          </div>
 
-          <label>ID de cuenta</label>
-          <input [(ngModel)]="s.accountId" placeholder="ej: google-1234567890"
-                 (blur)="loadCalendars(i)" />
+          <div class="form-group">
+            <label>ID de cuenta</label>
+            <input [(ngModel)]="s.accountId" placeholder="ej: google-1234567890" (blur)="loadCalendars(i)" />
+          </div>
 
-          <label>ID de calendario</label>
-          <input [(ngModel)]="s.calendarId" placeholder="ej: primary" />
+          <label>Calendario</label>
+              <div style="display:flex; gap:0.5rem; align-items:center;">
+                <select *ngIf="calendarOptions[i]?.length; else caldavManualInput" [(ngModel)]="s.calendarId" style="flex:1;">
+                  <option value="">-- Selecciona un calendario --</option>
+                  <option *ngFor="let c of calendarOptions[i]" [value]="c.id">{{ c.summary }}</option>
+                </select>
+                <ng-template #caldavManualInput>
+                  <input [(ngModel)]="s.calendarId" placeholder="ej: /dav/principal/calendars/home/" style="flex:1;" />
+                </ng-template>
+                <button class="btn btn-secondary btn-sm" (click)="loadCalendars(i)" [disabled]="loadingCalendars[i]">
+                  {{ loadingCalendars[i] ? '⏳' : '🔄 Cargar' }}
+                </button>
+              </div>
 
           <ng-container *ngIf="s.provider === 'google'">
-            <label>Calendario</label>
-            <div style="display:flex; gap:0.5rem; align-items:center;">
-              <select *ngIf="calendarOptions[i]?.length; else manualInput"
-                      [(ngModel)]="s.calendarId" style="flex:1;">
-                <option value="">-- Selecciona un calendario --</option>
-                <option *ngFor="let c of calendarOptions[i]" [value]="c.id">
-                  {{ c.summary }}
-                </option>
-              </select>
-              <ng-template #manualInput>
-                <input [(ngModel)]="s.calendarId" placeholder="ej: primary" style="flex:1;" />
-              </ng-template>
-              <button (click)="loadCalendars(i)" [disabled]="loadingCalendars[i]" style="white-space:nowrap;">
-                {{ loadingCalendars[i] ? 'Cargando...' : 'Cargar calendarios' }}
-              </button>
+            <div class="form-group">
+              <label>Calendario</label>
+              <div style="display:flex; gap:0.5rem; align-items:center;">
+                <select *ngIf="calendarOptions[i]?.length; else manualInput" [(ngModel)]="s.calendarId" style="flex:1;">
+                  <option value="">-- Selecciona un calendario --</option>
+                  <option *ngFor="let c of calendarOptions[i]" [value]="c.id">{{ c.summary }}</option>
+                </select>
+                <ng-template #manualInput>
+                  <input [(ngModel)]="s.calendarId" placeholder="ej: primary" style="flex:1;" />
+                </ng-template>
+                <button class="btn btn-secondary btn-sm" (click)="loadCalendars(i)" [disabled]="loadingCalendars[i]">
+                  {{ loadingCalendars[i] ? '⏳' : '🔄 Cargar' }}
+                </button>
+              </div>
             </div>
-            <p *ngIf="calendarErrors[i]" style="color:red; margin:0;">{{ calendarErrors[i] }}</p>
+            <div *ngIf="calendarErrors[i]" class="alert-error">{{ calendarErrors[i] }} 
+            </div>          
           </ng-container>
 
           <ng-container *ngIf="s.provider === 'caldav'">
-            <label>ID de calendario</label>
-            <input [(ngModel)]="s.calendarId" placeholder="ej: /calendars/personal" />
+           <div class="form-group">
+              <label>ID de calendario</label>
+              <input [(ngModel)]="s.calendarId" placeholder="ej: /calendars/personal" />
+            </div>
           </ng-container>
 
-          <button (click)="removeSource(i)" style="color:red; width:fit-content;">
-            Eliminar fuente
-          </button>
+           <button class="btn btn-danger btn-sm" (click)="removeSource(i)">Eliminar fuente</button>
         </div>
 
-        <button (click)="addSource()">+ Añadir calendario fuente</button>
-
-        <h2>Configuración</h2>
-
-        <label>Máximo de eventos por calendario</label>
-        <input type="number" [(ngModel)]="maxResults" placeholder="ej: 100" />
-
-        <label>Frecuencia de refresco (minutos)</label>
-        <input type="number" [(ngModel)]="refreshInterval" placeholder="ej: 60" />
-
-        <button (click)="create()" [disabled]="loading" style="margin-top:1rem;">
-          {{ loading ? 'Creando...' : 'Crear fusión' }}
-        </button>
-
-        <p *ngIf="error" style="color:red;">{{ error }}</p>
-
-        <div *ngIf="icsUrl" style="border:1px solid green; padding:1rem; border-radius:8px;">
-          <p><strong>Fusión creada.</strong> URL ICS para suscribirte:</p>
-          <a [href]="icsUrl" target="_blank">{{ icsUrl }}</a>
-          <br/>
-          <button (click)="copy()" style="margin-top:0.5rem;">Copiar URL</button>
-        </div>
-
+        <button class="btn btn-secondary" (click)="addSource()" style="margin-top:0.5rem;">+ Añadir calendario fuente</button>
       </div>
+
+      <div class="card">
+        <h2>Configuración</h2>
+        <div class="form-group">
+          <label>Máximo de eventos por calendario</label>
+          <input type="number" [(ngModel)]="maxResults" placeholder="ej: 100" />
+        </div>
+        <div class="form-group">
+          <label>Frecuencia de refresco (minutos)</label>
+          <input type="number" [(ngModel)]="refreshInterval" placeholder="ej: 60" />
+        </div>
+      </div>
+
+
+        <div *ngIf="error" class="alert-error">{{ error }}</div>
+
+        <button class="btn btn-primary" (click)="create()" [disabled]="loading" style="width:100%; padding:0.85rem; font-size:1rem;">
+        {{ loading ? 'Creando...' : '🚀 Crear fusión' }}
+      </button>
+
+        <div *ngIf="icsUrl" class="ics-result" style="margin-top:1rem;">
+        <p>✅ Fusión creada. Suscríbete con esta URL ICS:</p>
+        <a [href]="icsUrl" target="_blank">{{ icsUrl }}</a>
+        <br/>
+        <button class="btn btn-secondary btn-sm" (click)="copy()" style="margin-top:0.75rem;">Copiar URL</button>
+      </div>
+
+      <a routerLink="/"><button class="btn btn-secondary" style="margin-top:1rem;">← Volver</button></a>
     </div>
   `
 })
@@ -101,8 +121,7 @@ export class MergeNewComponent {
   error = '';
   icsUrl = '';
 
-  constructor(private mergeService: MergeService, private googleService: GoogleCalendarService, private router: Router) {}
-
+  constructor(private mergeService: MergeService, private googleService: GoogleCalendarService, private caldavService: CalDavService, private router: Router) {}
   addSource() {
     this.sources.push({ provider: 'google', accountId: '', calendarId: '', prefix: '' });
      this.calendarOptions.push([]);

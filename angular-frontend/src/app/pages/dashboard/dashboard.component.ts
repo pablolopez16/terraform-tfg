@@ -8,34 +8,33 @@ import { MergeService } from '../../core/services/merge.service';
   standalone: true,
   imports: [CommonModule, RouterLink],
   template: `
-    <div style="padding:2rem;">
-      <h1>Mis calendarios fusionados</h1>
+    <div class="page">
+      <h1 class="page-title">📅 CalendarFusion</h1>
+      <p class="page-subtitle">Tus calendarios fusionados en un solo lugar</p>
 
-      <div style="margin-top:1rem; display:flex; gap:1rem;">
-        <a routerLink="/merge/new"><button>+ Nueva fusión</button></a>
-        <a routerLink="/accounts"><button>Gestionar cuentas</button></a>
+      <div class="action-bar">
+        <a routerLink="/merge/new"><button class="btn btn-primary">+ Nueva fusión</button></a>
+        <a routerLink="/accounts"><button class="btn btn-secondary">Gestionar cuentas</button></a>
       </div>
 
-      <p *ngIf="loading" style="margin-top:1rem;">Cargando...</p>
-      <p *ngIf="error" style="margin-top:1rem; color:red;">{{ error }}</p>
+     <div *ngIf="loading" class="alert-info">Cargando fusiones...</div>
+     <div *ngIf="error" class="alert-error">{{ error }}</div>
 
-      <div *ngIf="!loading && merges.length === 0" style="margin-top:1.5rem;">
-        No tienes ninguna fusión creada todavía.
+      <div *ngIf="!loading && merges.length === 0" class="empty-state">
+        No tienes ninguna fusión creada todavía.<br>
+        <a routerLink="/merge/new"><button class="btn btn-primary" style="margin-top:1rem;">+ Crear primera fusión</button></a>
       </div>
 
-      <div *ngFor="let m of merges"
-           style="margin-top:1rem; border:1px solid #ccc; padding:1rem; border-radius:8px;">
+      <div *ngFor="let m of merges" class="merge-item">
         <strong>{{ m.merge_id }}</strong>
 
-        <div style="margin-top:0.5rem;">
-          <span>URL ICS: </span>
+        <div class="ics-link">
           <a [href]="getIcsUrl(m.merge_id)" target="_blank">{{ getIcsUrl(m.merge_id) }}</a>
-          <button (click)="copy(m.merge_id)" style="margin-left:0.5rem;">Copiar</button>
+          <button (click)="copy(m.merge_id)" class="btn btn-secondary btn-sm">Copiar</button>
+          <button (click)="delete(m.merge_id)" class="btn btn-danger btn-sm">Eliminar</button>
         </div>
 
-        <button (click)="delete(m.merge_id)" style="margin-top:0.5rem; color:red;">
-          Eliminar
-        </button>
+        
       </div>
     </div>
   `

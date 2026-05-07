@@ -8,31 +8,30 @@ import { GoogleCalendarService } from '../../core/services/google-calendar.servi
   standalone: true,
   imports: [CommonModule, RouterLink],
   template: `
-    <div style="padding:2rem;">
-      <h1>Cuentas conectadas</h1>
-        <p *ngIf="connectedAccount" style="color:green; font-weight:bold;">
-        ✅ Cuenta {{ connectedAccount }} conectada correctamente.
-      </p>
-      <div style="margin-top:1.5rem; display:flex; flex-direction:column; gap:1rem; max-width:400px;">
-
-        <div style="border:1px solid #ccc; padding:1rem; border-radius:8px;">
-          <h2>Google Calendar</h2>
-          <p>Conecta una cuenta de Google para acceder a sus calendarios.</p>
-          <button (click)="connectGoogle()" [disabled]="loadingGoogle">
-            {{ loadingGoogle ? 'Redirigiendo...' : 'Conectar cuenta de Google' }}
-          </button>
-          <p *ngIf="errorGoogle" style="color:red;">{{ errorGoogle }}</p>
-        </div>
-
-        <div style="border:1px solid #ccc; padding:1rem; border-radius:8px;">
-          <h2>CalDAV</h2>
-          <p>Conecta una cuenta CalDAV (Nextcloud, Apple, etc.).</p>
-          <a routerLink="/accounts/caldav">
-            <button>Conectar cuenta CalDAV</button>
-          </a>
-        </div>
-
+    <div class="page">
+      <h1 class="page-title">🔗 Cuentas conectadas</h1>
+      <p class="page-subtitle">Conecta tus fuentes de calendario</p>
+        <div *ngIf="connectedAccount" class="alert-success">
+        ✅ Cuenta <strong>{{ connectedAccount }}</strong> conectada correctamente.
       </div>
+      <div class="card">
+        <h2>Google Calendar</h2>
+        <p>Conecta una cuenta de Google para acceder a sus calendarios.</p>
+        <button class="btn btn-google" (click)="connectGoogle()" [disabled]="loadingGoogle">
+          <span>🔵</span> {{ loadingGoogle ? 'Redirigiendo...' : 'Conectar con Google' }}
+        </button>
+        <div *ngIf="errorGoogle" class="alert-error" style="margin-top:0.75rem;">{{ errorGoogle }}</div>
+      </div>
+
+        <div class="card">
+        <h2>CalDAV</h2>
+        <p>Conecta una cuenta CalDAV (Nextcloud, Apple Calendar, etc.).</p>
+        <a routerLink="/accounts/caldav">
+          <button class="btn btn-secondary">Conectar CalDAV</button>
+        </a>
+      </div>
+
+      <a routerLink="/"><button class="btn btn-secondary" style="margin-top:0.5rem;">← Volver al inicio</button></a>
     </div>
   `
 })
