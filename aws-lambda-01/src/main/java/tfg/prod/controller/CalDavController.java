@@ -93,6 +93,12 @@ public class CalDavController {
             String user = sessionService.getUsername(accountId);
             String pass = sessionService.getPassword(accountId);
 
+
+            // Step 1: discover current-user-principal
+            String principalUrl = discoverPrincipal(url, user, pass);
+            // Step 2: discover calendar-home-set from principal
+            String calendarHome = discoverCalendarHome(principalUrl, user, pass);
+
             String propfindBody = """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <D:propfind xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav"
@@ -106,8 +112,8 @@ public class CalDavController {
                 </D:propfind>
                 """;
 
-            String response = sendPropfind(url, user, pass, propfindBody, "1");
-            List<Map<String, String>> calendars = parseCalendarsFromXml(response, url);
+            String response = sendPropfind(calendarHome, user, pass, propfindBody, "1");
+            List<Map<String, String>> calendars = parseCalendarsFromXml(response, calendarHome);
             if (calendars.isEmpty()) return ResponseEntity.ok("No se encontraron calendarios.");
             return ResponseEntity.ok(calendars);
         } catch (Exception e) {
@@ -115,6 +121,37 @@ public class CalDavController {
         }
     }
 
+      private String discoverPrincipal(String serverUrl, String user, String pass) throws Exception {
+        String body = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <D:propfind xmlns:D="DAV:">
+              <D:prop><D:current-user-principal/></D:prop>
+            </D:propfind>
+            """;
+        String response = sendPropfind(serverUrl, user, pass, body, "0");
+        String href = extractXmlValue(response, "href");
+        if (href == null || href.isBlank()) return serverUrl;
+        if (href.startsWith("http")) return href;
+        int pathStart = serverUrl.indexOf("/", 8);
+        String host = pathStart > 0 ? serverUrl.substring(0, pathStart) : serverUrl;
+        return host + href;
+    }
+
+    private String discoverCalendarHome(String principalUrl, String user, String pass) throws Exception {
+        String body = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <D:propfind xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">
+              <D:prop><C:calendar-home-set/></D:prop>
+            </D:propfind>
+            """;
+        String response = sendPropfind(principalUrl, user, pass, body, "0");
+        String href = extractXmlValue(response, "href");
+        if (href == null || href.isBlank()) return principalUrl;
+        if (href.startsWith("http")) return href;
+        int pathStart = principalUrl.indexOf("/", 8);
+        String host = pathStart > 0 ? principalUrl.substring(0, pathStart) : principalUrl;
+        return host + href;
+    }
     // ---------------------------------------------------------------
     // EVENTOS
     // ---------------------------------------------------------------
