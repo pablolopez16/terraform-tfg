@@ -15,6 +15,7 @@ resource "aws_lambda_function" "aws-lambda-tfg" {
     DYNAMODB_TABLE = aws_dynamodb_table.calendar_accounts.name
      DYNAMODB_MERGE_TABLE = aws_dynamodb_table.merge_configs.name
      GOOGLE_CREDENTIALS_SECRET_ARN  = aws_secretsmanager_secret.google_credentials.arn
+     FRONTEND_URL = "http://aws-tfg-frontend-plfz.s3-website-us-east-1.amazonaws.com"
   }
 
   }
@@ -117,7 +118,7 @@ resource "aws_iam_role_policy" "lambda_dynamodb" {
     Version = "2012-10-17"
     Statement = [{
       Effect   = "Allow"
-      Action   = ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:DeleteItem"]
+      Action   = ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:DeleteItem","dynamodb:Scan"]
       Resource = aws_dynamodb_table.calendar_accounts.arn
     }]
   })

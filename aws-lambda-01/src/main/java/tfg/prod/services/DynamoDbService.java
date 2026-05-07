@@ -8,6 +8,7 @@ import software.amazon.awssdk.services.dynamodb.model.*;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.List;
 
 @Service
 public class DynamoDbService {
@@ -107,5 +108,18 @@ public class DynamoDbService {
                 .tableName(mergeTable)
                 .key(Map.of("merge_id", AttributeValue.fromS(mergeId)))
                 .build());
+        }
+        public List<Map<String, String>> listMergeConfigs() {
+                ScanResponse response = client.scan(ScanRequest.builder()
+                        .tableName(mergeTable)
+                        .build());
+                List<Map<String, String>> result = new java.util.ArrayList<>();
+                for (Map<String, AttributeValue> item : response.items()) {
+                        Map<String, String> entry = new HashMap<>();
+                        if (item.containsKey("merge_id")) entry.put("merge_id", item.get("merge_id").s());
+                        if (item.containsKey("config"))   entry.put("config",   item.get("config").s());
+                        result.add(entry);
+                }
+                return result;
         }
 }

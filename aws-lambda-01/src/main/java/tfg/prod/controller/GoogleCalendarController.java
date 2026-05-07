@@ -30,6 +30,9 @@ public class GoogleCalendarController {
     private static final String APPLICATION_NAME = "TFG Calendar Merger";
     private static final GsonFactory JSON_FACTORY = GsonFactory.getDefaultInstance();
 
+    @Value("${frontend.url}")
+    private String frontendUrl;
+
     private final GoogleTokenService tokenService;
     @Value("${google.redirect-uri}")
     private String redirectUri;
@@ -71,9 +74,9 @@ public ResponseEntity<?> handleGoogleCallback(
         tokenService.saveToken(accountId, tokenResponse);
 
         // Redirige al frontend en lugar de mostrar el JSON
-        return ResponseEntity.status(302)
-                .header("Location", "http://localhost:4200/accounts?connected=google")
-                .build();
+       return ResponseEntity.status(302)
+                    .header("Location", frontendUrl + "/accounts?connected=" + accountId)
+                    .build();
 
     } catch (TokenResponseException e) {
         return ResponseEntity.status(500).body("Error de token: " + e.getDetails());

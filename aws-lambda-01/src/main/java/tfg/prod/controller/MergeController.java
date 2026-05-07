@@ -47,6 +47,14 @@ public class MergeController {
             return ResponseEntity.status(500).body("Error: " + e.getMessage());
         }
     }
+    @GetMapping
+    public ResponseEntity<?> list() {
+        try {
+            return ResponseEntity.ok(dynamoDb.listMergeConfigs());
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Error: " + e.getMessage());
+        }
+    }
 
     // Descargar/suscribir el ICS fusionado
     @GetMapping("/{mergeId}/ics")
