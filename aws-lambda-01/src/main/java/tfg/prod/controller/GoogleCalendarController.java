@@ -54,35 +54,33 @@ public class GoogleCalendarController {
     }
 
     // Google redirige aquí con code y state (=accountId) tras la autenticación
-    @GetMapping("/auth/google/callback")
-    public ResponseEntity<?> handleGoogleCallback(
-            @RequestParam String code,
-            @RequestParam(required = false, defaultValue = "default") String state) {
-        String accountId = state;
-        try {
-            GoogleCredentials creds = CredentialsLoader.load();
-            HttpTransport transport = GoogleNetHttpTransport.newTrustedTransport();
-            GoogleTokenResponse tokenResponse = new GoogleAuthorizationCodeTokenRequest(
-                    transport, JSON_FACTORY,
-                    "https://oauth2.googleapis.com/token",
-                    creds.getClient_id(), creds.getClient_secret(),
-                    code, redirectUri
-            ).execute();
-            tokenService.saveToken(accountId, tokenResponse);
-            return ResponseEntity.ok(Map.of(
-                    "message",       "Autenticación completada",
-                    "account_id",    accountId,
-                    "access_token",  tokenResponse.getAccessToken(),
-                    "refresh_token", tokenResponse.getRefreshToken() != null
-                            ? tokenResponse.getRefreshToken()
-                            : "no devuelto (ya existe en DynamoDB)"
-            ));
-        } catch (TokenResponseException e) {
-            return ResponseEntity.status(500).body("Error de token: " + e.getDetails());
-        } catch (Exception e) {
-            return ResponseEntity.status(500).body("Error: " + e.getMessage());
-        }
+   @GetMapping("/auth/google/callback")
+public ResponseEntity<?> handleGoogleCallback(
+        @RequestParam String code,
+        @RequestParam(required = false, defaultValue = "default") String state) {
+    String accountId = state;
+    try {
+        GoogleCredentials creds = CredentialsLoader.load();
+        HttpTransport transport = GoogleNetHttpTransport.newTrustedTransport();
+        GoogleTokenResponse tokenResponse = new GoogleAuthorizationCodeTokenRequest(
+                transport, JSON_FACTORY,
+                "https://oauth2.googleapis.com/token",
+                creds.getClient_id(), creds.getClient_secret(),
+                code, redirectUri
+        ).execute();
+        tokenService.saveToken(accountId, tokenResponse);
+
+        // Redirige al frontend en lugar de mostrar el JSON
+        return ResponseEntity.status(302)
+                .header("Location", "http://localhost:4200/accounts?connected=google")
+                .build();
+
+    } catch (TokenResponseException e) {
+        return ResponseEntity.status(500).body("Error de token: " + e.getDetails());
+    } catch (Exception e) {
+        return ResponseEntity.status(500).body("Error: " + e.getMessage());
     }
+}
 
     // Inicializa el token desde un refresh_token (útil tras cold start o desde otros servicios)
     @PostMapping("/auth/token")
