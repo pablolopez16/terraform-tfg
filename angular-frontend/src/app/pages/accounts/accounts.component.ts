@@ -1,6 +1,6 @@
-import { Component } from '@angular/core';
+import { Component,OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { RouterLink,ActivatedRoute } from '@angular/router';
 import { GoogleCalendarService } from '../../core/services/google-calendar.service';
 
 @Component({
@@ -10,7 +10,9 @@ import { GoogleCalendarService } from '../../core/services/google-calendar.servi
   template: `
     <div style="padding:2rem;">
       <h1>Cuentas conectadas</h1>
-
+        <p *ngIf="connectedAccount" style="color:green; font-weight:bold;">
+        ✅ Cuenta {{ connectedAccount }} conectada correctamente.
+      </p>
       <div style="margin-top:1.5rem; display:flex; flex-direction:column; gap:1rem; max-width:400px;">
 
         <div style="border:1px solid #ccc; padding:1rem; border-radius:8px;">
@@ -34,12 +36,21 @@ import { GoogleCalendarService } from '../../core/services/google-calendar.servi
     </div>
   `
 })
-export class AccountsComponent {
+export class AccountsComponent implements OnInit{
   loadingGoogle = false;
   errorGoogle = '';
+  connectedAccount = '';
 
-  constructor(private googleService: GoogleCalendarService) {}
+ 
+  constructor(private googleService: GoogleCalendarService, private route: ActivatedRoute) {}
 
+   ngOnInit() {
+    this.route.queryParams.subscribe(params => {
+      if (params['connected']) {
+        this.connectedAccount = params['connected'];
+      }
+    });
+  }
   connectGoogle() {
     this.loadingGoogle = true;
     this.errorGoogle = '';

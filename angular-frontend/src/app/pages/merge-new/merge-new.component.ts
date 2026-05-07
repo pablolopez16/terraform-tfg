@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { MergeService } from '../../core/services/merge.service';
 import { MergeSource } from '../../models/merge-source.model';
+import { GoogleCalendarService } from '../../core/services/google-calendar.service';
 
 @Component({
   selector: 'app-merge-new',
@@ -20,19 +21,42 @@ import { MergeSource } from '../../models/merge-source.model';
         <div *ngFor="let s of sources; let i = index"
              style="border:1px solid #ccc; padding:1rem; border-radius:8px; display:flex; flex-direction:column; gap:0.5rem;">
           <label>Proveedor</label>
-          <select [(ngModel)]="s.provider">
+          <select [(ngModel)]="s.provider" (ngModelChange)="onProviderChange(i)">
             <option value="google">Google Calendar</option>
             <option value="caldav">CalDAV</option>
           </select>
 
           <label>ID de cuenta</label>
-          <input [(ngModel)]="s.accountId" placeholder="ej: google-1234567890" />
+          <input [(ngModel)]="s.accountId" placeholder="ej: google-1234567890"
+                 (blur)="loadCalendars(i)" />
 
           <label>ID de calendario</label>
           <input [(ngModel)]="s.calendarId" placeholder="ej: primary" />
 
-          <label>Prefijo en títulos (opcional)</label>
-          <input [(ngModel)]="s.prefix" placeholder="ej: [Trabajo]" />
+          <ng-container *ngIf="s.provider === 'google'">
+            <label>Calendario</label>
+            <div style="display:flex; gap:0.5rem; align-items:center;">
+              <select *ngIf="calendarOptions[i]?.length; else manualInput"
+                      [(ngModel)]="s.calendarId" style="flex:1;">
+                <option value="">-- Selecciona un calendario --</option>
+                <option *ngFor="let c of calendarOptions[i]" [value]="c.id">
+                  {{ c.summary }}
+                </option>
+              </select>
+              <ng-template #manualInput>
+                <input [(ngModel)]="s.calendarId" placeholder="ej: primary" style="flex:1;" />
+              </ng-template>
+              <button (click)="loadCalendars(i)" [disabled]="loadingCalendars[i]" style="white-space:nowrap;">
+                {{ loadingCalendars[i] ? 'Cargando...' : 'Cargar calendarios' }}
+              </button>
+            </div>
+            <p *ngIf="calendarErrors[i]" style="color:red; margin:0;">{{ calendarErrors[i] }}</p>
+          </ng-container>
+
+          <ng-container *ngIf="s.provider === 'caldav'">
+            <label>ID de calendario</label>
+            <input [(ngModel)]="s.calendarId" placeholder="ej: /calendars/personal" />
+          </ng-container>
 
           <button (click)="removeSource(i)" style="color:red; width:fit-content;">
             Eliminar fuente
@@ -70,20 +94,50 @@ export class MergeNewComponent {
   sources: MergeSource[] = [];
   maxResults = 100;
   refreshInterval = 60;
+  calendarOptions: { id: string; summary: string }[][] = [];
+  loadingCalendars: boolean[] = [];
+  calendarErrors: string[] = [];
   loading = false;
   error = '';
   icsUrl = '';
 
-  constructor(private mergeService: MergeService, private router: Router) {}
+  constructor(private mergeService: MergeService, private googleService: GoogleCalendarService, private router: Router) {}
 
   addSource() {
     this.sources.push({ provider: 'google', accountId: '', calendarId: '', prefix: '' });
+     this.calendarOptions.push([]);
+     this.loadingCalendars.push(false);
+     this.calendarErrors.push('');
   }
 
   removeSource(i: number) {
     this.sources.splice(i, 1);
+    this.calendarOptions.splice(i, 1);
+    this.loadingCalendars.splice(i, 1);
+    this.calendarErrors.splice(i, 1);
+  }
+  onProviderChange(i: number) {
+    this.calendarOptions[i] = [];
+    this.calendarErrors[i] = '';
+    this.sources[i].calendarId = '';
   }
 
+  loadCalendars(i: number) {
+    const s = this.sources[i];
+    if (s.provider !== 'google' || !s.accountId.trim()) return;
+    this.loadingCalendars[i] = true;
+    this.calendarErrors[i] = '';
+    this.googleService.listCalendars(s.accountId).subscribe({
+      next: (items: any[]) => {
+        this.calendarOptions[i] = items.map(c => ({ id: c.id, summary: c.summary || c.id }));
+        this.loadingCalendars[i] = false;
+      },
+      error: () => {
+        this.calendarErrors[i] = 'No se pudieron cargar los calendarios. Comprueba el ID de cuenta.';
+        this.loadingCalendars[i] = false;
+      }
+    });
+  }
   create() {
     if (this.sources.length === 0) {
       this.error = 'Añade al menos un calendario fuente.';
