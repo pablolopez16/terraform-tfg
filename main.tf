@@ -182,6 +182,22 @@ output "frontend_url" {
 output "api_url" {
   value = aws_apigatewayv2_stage.api-gateway-stage.invoke_url
 }
+
+resource "null_resource" "frontend_deploy" {
+  triggers = {
+    src_hash = sha1(join("", [
+      for f in fileset("${path.module}/angular-frontend/src", "**") :
+      filesha1("${path.module}/angular-frontend/src/${f}")
+    ]))
+  }
+
+  provisioner "local-exec" {
+    interpreter = ["PowerShell", "-Command"]
+    command     = "cd ${path.module}/angular-frontend; npm ci; npm run build -- --configuration production; aws s3 sync dist/angular-frontend/browser/ s3://${aws_s3_bucket.frontend.bucket}/ --delete"
+  }
+
+  depends_on = [aws_s3_bucket_policy.frontend]
+}
 #endregion
 
 #region Secrets Manager
