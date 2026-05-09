@@ -16,6 +16,7 @@ resource "aws_lambda_function" "aws-lambda-tfg" {
      DYNAMODB_MERGE_TABLE = aws_dynamodb_table.merge_configs.name
      GOOGLE_CREDENTIALS_SECRET_ARN  = aws_secretsmanager_secret.google_credentials.arn
      FRONTEND_URL = "http://aws-tfg-frontend-plfz.s3-website-us-east-1.amazonaws.com"
+     ICS_CACHE_BUCKET = aws_s3_bucket.aws-lambda-tfg-bucket.bucket
   }
 
   }
@@ -208,5 +209,40 @@ resource "aws_iam_role_policy" "lambda_secrets_manager" {
   })
 }
 #endregion 
+
+#region EventBridge
+
+resource "aws_cloudwatch_event_rule" "calendar_refresh" {
+  name                = "tfg-calendar-refresh"
+  schedule_expression = "rate(15 minutes)"
+}
+
+resource "aws_cloudwatch_event_target" "calendar_refresh" {
+  rule = aws_cloudwatch_event_rule.calendar_refresh.name
+  arn  = aws_lambda_function.aws-lambda-tfg.arn
+}
+
+resource "aws_lambda_permission" "eventbridge" {
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.aws-lambda-tfg.function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.calendar_refresh.arn
+}
+
+resource "aws_iam_role_policy" "lambda_s3_ics" {
+  name = "lambda-s3-ics-policy"
+  role = data.aws_iam_role.lambda_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["s3:PutObject", "s3:GetObject"]
+      Resource = "${aws_s3_bucket.aws-lambda-tfg-bucket.arn}/ics/*"
+    }]
+  })
+}
+
+#endregion
 
 

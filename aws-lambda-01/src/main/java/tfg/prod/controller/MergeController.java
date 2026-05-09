@@ -56,23 +56,37 @@ public class MergeController {
         }
     }
 
-    // Descargar/suscribir el ICS fusionado
     @GetMapping("/{mergeId}/ics")
-    public ResponseEntity<String> getIcs(@PathVariable String mergeId) {
-        try {
-            String json = dynamoDb.getMergeConfig(mergeId);
-            if (json == null) return ResponseEntity.notFound().build();
-            MergeConfig config      = mapper.readValue(json, MergeConfig.class);
-            List<MergedEvent> events = mergeService.merge(config);
-            String ics              = icsService.generate(events, "Calendario Fusionado");
-            return ResponseEntity.ok()
+public ResponseEntity<String> getIcs(@PathVariable String mergeId) {
+    try {
+        // Intentar servir desde caché S3
+        String bucket = System.getenv("ICS_CACHE_BUCKET");
+        if (bucket != null) {
+            try {
+                software.amazon.awssdk.services.s3.S3Client s3 = software.amazon.awssdk.services.s3.S3Client.builder()
+                    .httpClient(software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient.create()).build();
+                var obj = s3.getObjectAsBytes(b -> b.bucket(bucket).key("ics/" + mergeId + ".ics"));
+                return ResponseEntity.ok()
                     .header("Content-Type", "text/calendar; charset=UTF-8")
                     .header("Content-Disposition", "attachment; filename=\"calendar.ics\"")
-                    .body(ics);
-        } catch (Exception e) {
-            return ResponseEntity.status(500).body("Error: " + e.getMessage());
+                    .body(obj.asUtf8String());
+            } catch (Exception ignored) {
+                // caché no disponible, generar en tiempo real
+            }
         }
+        // Fallback: generar en tiempo real
+        String json = dynamoDb.getMergeConfig(mergeId);
+        if (json == null) return ResponseEntity.notFound().build();
+        MergeConfig config = mapper.readValue(json, MergeConfig.class);
+        String ics = icsService.generate(mergeService.merge(config), "Calendario Fusionado");
+        return ResponseEntity.ok()
+            .header("Content-Type", "text/calendar; charset=UTF-8")
+            .header("Content-Disposition", "attachment; filename=\"calendar.ics\"")
+            .body(ics);
+    } catch (Exception e) {
+        return ResponseEntity.status(500).body("Error: " + e.getMessage());
     }
+}
 
     @GetMapping("/{mergeId}")
     public ResponseEntity<?> get(@PathVariable String mergeId) {
