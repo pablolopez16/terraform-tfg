@@ -239,14 +239,14 @@ public class CalDavController {
     }
 
     private CloseableHttpClient buildHttpClient(String user, String pass) {
-        String credentials = Base64.getEncoder().encodeToString(
-                (user + ":" + pass).getBytes(StandardCharsets.UTF_8));
-        return HttpClients.custom()
-                .addRequestInterceptorFirst((request, entity, context) ->
-                        request.setHeader("Authorization", "Basic " + credentials))
-                .build();
-    }
-
+    String credentials = Base64.getEncoder().encodeToString(
+            (user + ":" + pass).getBytes(StandardCharsets.UTF_8));
+    return HttpClients.custom()
+            .setRedirectStrategy(new org.apache.hc.client5.http.impl.DefaultRedirectStrategy())
+            .addRequestInterceptorFirst((request, entity, context) ->
+                    request.setHeader("Authorization", "Basic " + credentials))
+            .build();
+}
     private List<Map<String, String>> parseCalendarsFromXml(String xml, String baseUrl) {
         List<Map<String, String>> calendars = new ArrayList<>();
         String[] responses = xml.split("<[^>]*:?response>");
