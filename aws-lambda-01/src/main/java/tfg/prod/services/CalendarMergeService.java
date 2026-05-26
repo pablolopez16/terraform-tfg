@@ -133,7 +133,8 @@ public class CalendarMergeService {
             if (tagStart == -1) tagStart = xml.indexOf("<C:calendar-data", start);
             if (tagStart == -1) break;
             int contentStart = xml.indexOf(">", tagStart) + 1;
-            int contentEnd   = xml.indexOf("</", contentStart);
+            int contentEnd = xml.indexOf("</calendar-data>", contentStart);
+            if (contentEnd == -1) contentEnd = xml.indexOf("</C:calendar-data>", contentStart);
             if (contentEnd == -1) break;
             String ics = xml.substring(contentStart, contentEnd).trim();
             if (!ics.isBlank()) {
