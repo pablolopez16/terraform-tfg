@@ -121,31 +121,82 @@ public class CalDavController {
         }
     }
 
-      private String discoverPrincipal(String serverUrl, String user, String pass) throws Exception {
+     private String discoverPrincipal(String serverUrl, String user, String pass) throws Exception {
         String body = """
             <?xml version="1.0" encoding="UTF-8"?>
             <D:propfind xmlns:D="DAV:">
-              <D:prop><D:current-user-principal/></D:prop>
+            <D:prop><D:current-user-principal/></D:prop>
             </D:propfind>
             """;
-        String response = sendPropfind(serverUrl, user, pass, body, "0");
-        String href = extractXmlValue(response, "href");
-        if (href == null || href.isBlank()) return serverUrl;
-        if (href.startsWith("http")) return href;
-        int pathStart = serverUrl.indexOf("/", 8);
-        String host = pathStart > 0 ? serverUrl.substring(0, pathStart) : serverUrl;
-        return host + href;
+
+        try (CloseableHttpClient client = buildHttpClient(user, pass)) {
+            HttpUriRequestBase request = new HttpUriRequestBase("PROPFIND", java.net.URI.create(serverUrl));
+            request.setHeader("Content-Type", "application/xml; charset=UTF-8");
+            request.setHeader("Depth", "0");
+            request.setEntity(new StringEntity(body, ContentType.APPLICATION_XML));
+
+            try (CloseableHttpResponse response = client.execute(request)) {
+                int code = response.getCode();
+                System.err.println("[CalDAV] discoverPrincipal status: " + code + " url: " + serverUrl);
+
+                // Seguir redirección manualmente con PROPFIND
+                if (code == 301 || code == 302 || code == 307 || code == 308) {
+                    String location = response.getFirstHeader("Location").getValue();
+                    System.err.println("[CalDAV] redirect to: " + location);
+                    if (!location.startsWith("http")) {
+                        int pathStart = serverUrl.indexOf("/", 8);
+                        String host = pathStart > 0 ? serverUrl.substring(0, pathStart) : serverUrl;
+                        location = host + location;
+                    }
+                    return discoverPrincipal(location, user, pass);
+                }
+
+                String xml = EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8);
+                System.err.println("[CalDAV] discoverPrincipal response: " + xml);
+
+                int cpIdx = xml.indexOf("current-user-principal");
+                String href = null;
+                if (cpIdx >= 0) {
+                    String sub = xml.substring(cpIdx);
+                    int hStart = sub.indexOf("<href");
+                    if (hStart >= 0) {
+                        int vStart = sub.indexOf(">", hStart) + 1;
+                        int vEnd   = sub.indexOf("</", vStart);
+                        if (vEnd > vStart) href = sub.substring(vStart, vEnd).trim();
+                    }
+                }
+
+                if (href == null || href.isBlank()) return serverUrl;
+                if (href.startsWith("http")) return href;
+                int pathStart = serverUrl.indexOf("/", 8);
+                String host = pathStart > 0 ? serverUrl.substring(0, pathStart) : serverUrl;
+                return host + href;
+            }
+        }
     }
 
     private String discoverCalendarHome(String principalUrl, String user, String pass) throws Exception {
         String body = """
             <?xml version="1.0" encoding="UTF-8"?>
             <D:propfind xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">
-              <D:prop><C:calendar-home-set/></D:prop>
+            <D:prop><C:calendar-home-set/></D:prop>
             </D:propfind>
             """;
         String response = sendPropfind(principalUrl, user, pass, body, "0");
-        String href = extractXmlValue(response, "href");
+        System.err.println("[CalDAV] discoverCalendarHome response: " + response);
+
+        int chIdx = response.indexOf("calendar-home-set");
+            String href = null;
+            if (chIdx >= 0) {
+                String sub = response.substring(chIdx);
+                int hStart = sub.indexOf("<href");
+                if (hStart >= 0) {
+                    int vStart = sub.indexOf(">", hStart) + 1;
+                    int vEnd   = sub.indexOf("</", vStart);
+                    if (vEnd > vStart) href = sub.substring(vStart, vEnd).trim();
+                }
+            }
+
         if (href == null || href.isBlank()) return principalUrl;
         if (href.startsWith("http")) return href;
         int pathStart = principalUrl.indexOf("/", 8);
@@ -177,6 +228,7 @@ public class CalDavController {
                   <C:filter>
                     <C:comp-filter name="VCALENDAR">
                       <C:comp-filter name="VEVENT"/>
+                       <C:time-range start="20200101T000000Z" end="20271231T235959Z"/>
                     </C:comp-filter>
                   </C:filter>
                 </C:calendar-query>

@@ -108,6 +108,7 @@ public class CalendarMergeService {
               <C:filter>
                 <C:comp-filter name="VCALENDAR">
                   <C:comp-filter name="VEVENT"/>
+                    <C:time-range start="20200101T000000Z" end="20271231T235959Z"/>
                 </C:comp-filter>
               </C:filter>
             </C:calendar-query>
