@@ -97,18 +97,25 @@ public class CalendarMergeService {
         String baseUrl = calDavSessionService.getServerUrl(source.getAccountId());
         String user    = calDavSessionService.getUsername(source.getAccountId());
         String pass    = calDavSessionService.getPassword(source.getAccountId());
-        String calUrl  = source.getCalendarId().startsWith("http")
-                ? source.getCalendarId()
-                : baseUrl + "/" + source.getCalendarId();
-
+        String calUrl;
+        if (source.getCalendarId().startsWith("http")) {
+            calUrl = source.getCalendarId();
+        } else if (source.getCalendarId().startsWith("/")) {
+            int pathStart = baseUrl.indexOf("/", 8);
+            String host = pathStart > 0 ? baseUrl.substring(0, pathStart) : baseUrl;
+            calUrl = host + source.getCalendarId();
+        } else {
+            calUrl = baseUrl + "/" + source.getCalendarId();
+        }
         String reportBody = """
             <?xml version="1.0" encoding="UTF-8"?>
             <C:calendar-query xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">
               <D:prop><D:getetag/><C:calendar-data/></D:prop>
               <C:filter>
                 <C:comp-filter name="VCALENDAR">
-                  <C:comp-filter name="VEVENT"/>
+                  <C:comp-filter name="VEVENT">
                     <C:time-range start="20200101T000000Z" end="20271231T235959Z"/>
+                  </C:comp-filter>
                 </C:comp-filter>
               </C:filter>
             </C:calendar-query>
