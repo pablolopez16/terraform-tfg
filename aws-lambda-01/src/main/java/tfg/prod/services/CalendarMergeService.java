@@ -1,5 +1,5 @@
 package tfg.prod.services;
-
+ 
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
@@ -20,26 +20,26 @@ import org.springframework.stereotype.Service;
 import tfg.prod.modules.MergeConfig;
 import tfg.prod.modules.MergedEvent;
 import tfg.prod.modules.MergeSource;
-
+ 
 import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
-
+ 
 @Service
 public class CalendarMergeService {
-
+ 
     private final GoogleTokenService googleTokenService;
     private final CalDavSessionService calDavSessionService;
     private static final GsonFactory JSON_FACTORY = GsonFactory.getDefaultInstance();
-
+ 
     public CalendarMergeService(GoogleTokenService googleTokenService,
                                 CalDavSessionService calDavSessionService) {
         this.googleTokenService  = googleTokenService;
         this.calDavSessionService = calDavSessionService;
     }
-
+ 
     public List<MergedEvent> merge(MergeConfig config) {
         List<MergedEvent> all = new ArrayList<>();
         for (MergeSource source : config.getSources()) {
@@ -55,26 +55,26 @@ public class CalendarMergeService {
         }
         return all;
     }
-
+ 
     // ---- Google ----
-
+ 
     private List<MergedEvent> fetchGoogle(MergeSource source, int maxResults) throws Exception {
         Credential credential = googleTokenService.getCredential(source.getAccountId());
         Calendar service = new Calendar.Builder(
                 GoogleNetHttpTransport.newTrustedTransport(), JSON_FACTORY, credential)
                 .setApplicationName("TFG Calendar Merger").build();
-
+ 
         Events events = service.events().list(source.getCalendarId())
                 .setMaxResults(maxResults)
                 .setSingleEvents(true)
                 .setOrderBy("startTime")
                 .execute();
-
+ 
         List<MergedEvent> result = new ArrayList<>();
         for (Event e : events.getItems()) {
             String title = e.getSummary() != null ? e.getSummary() : "(sin título)";
             if (source.getPrefix() != null) title = source.getPrefix() + title;
-
+ 
             EventDateTime startDt = e.getStart();
             EventDateTime endDt   = e.getEnd();
             boolean allDay = startDt.getDateTime() == null;
@@ -84,15 +84,15 @@ public class CalendarMergeService {
             String end = allDay
                     ? rfc3339ToIcs(endDt.getDate().toStringRfc3339())
                     : rfc3339ToIcs(endDt.getDateTime().toStringRfc3339());
-
+ 
             result.add(new MergedEvent(e.getId(), title, e.getDescription(),
                     e.getLocation(), start, end, allDay));
         }
         return result;
     }
-
+ 
     // ---- CalDAV ----
-
+ 
     private List<MergedEvent> fetchCalDav(MergeSource source) throws Exception {
         String baseUrl = calDavSessionService.getServerUrl(source.getAccountId());
         String user    = calDavSessionService.getUsername(source.getAccountId());
@@ -120,11 +120,11 @@ public class CalendarMergeService {
               </C:filter>
             </C:calendar-query>
             """;
-
+ 
         String xml = sendReport(calUrl, user, pass, reportBody);
         return parseCalDavResponse(xml, source.getPrefix());
     }
-
+ 
     private List<MergedEvent> parseCalDavResponse(String xml, String prefix) {
         List<MergedEvent> events = new ArrayList<>();
         int start = 0;
@@ -145,36 +145,62 @@ public class CalendarMergeService {
         }
         return events;
     }
-
+ 
     private MergedEvent parseIcs(String icsData, String prefix) {
         try {
-            CalendarBuilder builder = new CalendarBuilder();
-            net.fortuna.ical4j.model.Calendar cal = builder.build(new StringReader(icsData));
-            for (Object component : cal.getComponents()) {
-                if (!(component instanceof VEvent e)) continue;
-                String uid     = e.getUid()        != null ? e.getUid().getValue()        : java.util.UUID.randomUUID().toString();
-                String summary = e.getSummary()     != null ? e.getSummary().getValue()     : "(sin título)";
-                if (prefix != null) summary = prefix + summary;
-                String desc    = e.getDescription() != null ? e.getDescription().getValue() : null;
-                String loc     = e.getLocation()    != null ? e.getLocation().getValue()    : null;
-                String startStr = e.getStartDate()  != null ? e.getStartDate().getValue().toString() : "";
-                String endStr   = e.getEndDate()    != null ? e.getEndDate().getValue().toString()   : startStr;
-                boolean allDay  = !startStr.contains("T");
-                return new MergedEvent(uid, summary, desc, loc, startStr, endStr, allDay);
-            }
+            // Desescapar entidades XML que iCloud mete en el calendar-data
+            String ics = icsData
+                .replace("&#13;&#10;", "\r\n")
+                .replace("&#13;", "\r")
+                .replace("&#10;", "\n")
+                .replace("&lt;", "<")
+                .replace("&gt;", ">")
+                .replace("&amp;", "&")
+                .replace("&quot;", "\"")
+                .replace("&apos;", "'");
+ 
+            String uid     = extractIcsField(ics, "UID");
+            String summary = extractIcsField(ics, "SUMMARY");
+            String desc    = extractIcsField(ics, "DESCRIPTION");
+            String loc     = extractIcsField(ics, "LOCATION");
+            String start   = extractIcsField(ics, "DTSTART");
+            String end     = extractIcsField(ics, "DTEND");
+ 
+            if (uid == null)     uid     = java.util.UUID.randomUUID().toString();
+            if (summary == null) summary = "(sin título)";
+            if (start == null)   return null;
+            if (end == null)     end = start;
+ 
+            // Limpiar parámetros tipo DTSTART;VALUE=DATE:20210101 → 20210101
+            if (start.contains(":")) start = start.substring(start.lastIndexOf(":") + 1);
+            if (end.contains(":"))   end   = end.substring(end.lastIndexOf(":") + 1);
+ 
+            boolean allDay = !start.contains("T");
+            if (prefix != null) summary = prefix + summary;
+ 
+            return new MergedEvent(uid, summary, desc, loc, start, end, allDay);
         } catch (Exception e) {
-            System.err.println("Error parseando ICS: " + e.getMessage());
+            System.err.println("Error parseando ICS manual: " + e.getMessage());
+            return null;
+        }
+    }
+ 
+    private String extractIcsField(String ics, String field) {
+        for (String line : ics.split("\r\n|\r|\n")) {
+            if (line.startsWith(field + ":") || line.startsWith(field + ";")) {
+                return line.substring(line.indexOf(":") + 1).trim();
+            }
         }
         return null;
     }
-
+ 
     // ---- Helpers ----
-
+ 
     private String rfc3339ToIcs(String rfc3339) {
         if (rfc3339 == null) return "";
         return rfc3339.replaceAll("[\\-:]", "").replaceAll("\\.\\d+", "").substring(0, rfc3339.contains("T") ? 16 : 8);
     }
-
+ 
     private String sendReport(String url, String user, String pass, String body) throws Exception {
         String auth = Base64.getEncoder().encodeToString((user + ":" + pass).getBytes(StandardCharsets.UTF_8));
         try (CloseableHttpClient client = HttpClients.custom()
