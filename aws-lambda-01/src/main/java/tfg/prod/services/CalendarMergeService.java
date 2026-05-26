@@ -185,7 +185,7 @@ public class CalendarMergeService {
         }
     }
  
-    private String extractIcsField(String ics, String field) {
+     String extractIcsField(String ics, String field) {
         for (String line : ics.split("\r\n|\r|\n")) {
             if (line.startsWith(field + ":") || line.startsWith(field + ";")) {
                 return line.substring(line.indexOf(":") + 1).trim();
