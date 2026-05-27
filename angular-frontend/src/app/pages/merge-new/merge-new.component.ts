@@ -75,6 +75,18 @@ import { MergeSource } from '../../models/merge-source.model';
             <label>Prefijo en títulos (opcional)</label>
             <input [(ngModel)]="s.prefix" placeholder="ej: [Trabajo]" />
           </div>
+          <div class="form-group">
+            <label>Sufijo en títulos (opcional)</label>
+            <input [(ngModel)]="s.suffix" placeholder="ej: (Personal)" />
+          </div>
+
+          <div class="form-group">
+            <label>Palabras clave a excluir (separadas por coma)</label>
+            <input 
+              [ngModel]="s.excludeKeywords?.join(', ')" 
+              (ngModelChange)="updateKeywords(i, $event)"
+              placeholder="ej: Cancelar, festivo, cumpleaños" />
+          </div>
 
           <button class="btn btn-danger btn-sm" (click)="removeSource(i)">Eliminar fuente</button>
         </div>
@@ -125,7 +137,7 @@ export class MergeNewComponent {
   constructor(private mergeService: MergeService, private googleService: GoogleCalendarService, private caldavService: CalDavService, private router: Router) {}
 
   addSource() {
-    this.sources.push({ provider: 'google', accountId: '', calendarId: '', prefix: '' });
+    this.sources.push({ provider: 'google', accountId: '', calendarId: '', prefix: '', suffix: '', excludeKeywords: [] });
     this.calendarOptions.push([]);
     this.loadingCalendars.push(false);
     this.calendarErrors.push('');
@@ -196,4 +208,7 @@ export class MergeNewComponent {
   copy() {
     navigator.clipboard.writeText(this.icsUrl);
   }
+  updateKeywords(i: number, value: string) {
+  this.sources[i].excludeKeywords = value.split(',').map(k => k.trim()).filter(k => k.length > 0);
+}
 }

@@ -3,4 +3,6 @@ export interface MergeSource {
   provider: 'google' | 'caldav';
   calendarId: string;
   prefix?: string;
+  suffix?: string;
+  excludeKeywords?: string[];
 }
