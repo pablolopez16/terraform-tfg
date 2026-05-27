@@ -85,8 +85,9 @@ public class CalendarMergeService {
                     ? rfc3339ToIcs(endDt.getDate().toStringRfc3339())
                     : rfc3339ToIcs(endDt.getDateTime().toStringRfc3339());
  
-            result.add(new MergedEvent(e.getId(), title, e.getDescription(),
-                    e.getLocation(), start, end, allDay));
+            MergedEvent ev = new MergedEvent(e.getId(), title, e.getDescription(),
+                    e.getLocation(), start, end, allDay);
+            if (!shouldExclude(ev, source)) result.add(ev);
         }
         return result;
     }
@@ -122,10 +123,10 @@ public class CalendarMergeService {
             """;
  
         String xml = sendReport(calUrl, user, pass, reportBody);
-        return parseCalDavResponse(xml, source.getPrefix());
+        return parseCalDavResponse(xml, source);
     }
  
-    private List<MergedEvent> parseCalDavResponse(String xml, String prefix) {
+    private List<MergedEvent> parseCalDavResponse(String xml, MergeSource source) {
         List<MergedEvent> events = new ArrayList<>();
         int start = 0;
         while (true) {
@@ -138,8 +139,13 @@ public class CalendarMergeService {
             if (contentEnd == -1) break;
             String ics = xml.substring(contentStart, contentEnd).trim();
             if (!ics.isBlank()) {
-                MergedEvent ev = parseIcs(ics, prefix);
-                if (ev != null) events.add(ev);
+                MergedEvent ev = parseIcs(ics, source.getPrefix());
+                if (ev != null) {
+                    if (source.getSuffix() != null && !source.getSuffix().isBlank())
+                        ev = new MergedEvent(ev.getUid(), ev.getSummary() + source.getSuffix(),
+                            ev.getDescription(), ev.getLocation(), ev.getStart(), ev.getEnd(), ev.isAllDay());
+                    if (!shouldExclude(ev, source)) events.add(ev);
+                }       
             }
             start = contentEnd + 1;
         }
@@ -176,7 +182,7 @@ public class CalendarMergeService {
             if (end.contains(":"))   end   = end.substring(end.lastIndexOf(":") + 1);
  
             boolean allDay = !start.contains("T");
-            if (prefix != null) summary = prefix + summary;
+            if (prefix != null && !prefix.isBlank()) summary = prefix + summary;
  
             return new MergedEvent(uid, summary, desc, loc, start, end, allDay);
         } catch (Exception e) {
@@ -193,6 +199,18 @@ public class CalendarMergeService {
         }
         return null;
     }
+    private boolean shouldExclude(MergedEvent event, MergeSource source) {
+        if (source.getExcludeKeywords() == null || source.getExcludeKeywords().isEmpty()) 
+            return false;
+        String summary = event.getSummary() != null ? event.getSummary().toLowerCase() : "";
+        String desc    = event.getDescription() != null ? event.getDescription().toLowerCase() : "";
+        for (String keyword : source.getExcludeKeywords()) {
+            if (summary.contains(keyword.toLowerCase()) || desc.contains(keyword.toLowerCase())) 
+                return true;
+        }
+        return false;
+    }
+    
  
     // ---- Helpers ----
  
