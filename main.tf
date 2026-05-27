@@ -15,7 +15,7 @@ resource "aws_lambda_function" "aws-lambda-tfg" {
     DYNAMODB_TABLE = aws_dynamodb_table.calendar_accounts.name
      DYNAMODB_MERGE_TABLE = aws_dynamodb_table.merge_configs.name
      GOOGLE_CREDENTIALS_SECRET_ARN  = aws_secretsmanager_secret.google_credentials.arn
-     FRONTEND_URL = "http://aws-tfg-frontend-plfz.s3-website-us-east-1.amazonaws.com"
+     FRONTEND_URL = "https://${aws_cloudfront_distribution.frontend.domain_name}"
      ICS_CACHE_BUCKET = aws_s3_bucket.aws-lambda-tfg-bucket.bucket
   }
 
@@ -44,7 +44,7 @@ resource "aws_apigatewayv2_api" "api-gateway-tfg" {
   protocol_type = "HTTP"
 
    cors_configuration {
-    allow_origins = ["http://aws-tfg-frontend-plfz.s3-website-us-east-1.amazonaws.com","http://localhost:4200"]   # cambiar a la URL del S3 frontend cuando esté listo
+    allow_origins = ["http://aws-tfg-frontend-plfz.s3-website-us-east-1.amazonaws.com", "http://localhost:4200", "https://${aws_cloudfront_distribution.frontend.domain_name}"]
     allow_methods = ["GET", "POST", "DELETE", "OPTIONS"]
     allow_headers = ["Content-Type", "Authorization"]
     max_age       = 300
@@ -193,7 +193,7 @@ resource "null_resource" "frontend_deploy" {
 
   provisioner "local-exec" {
     interpreter = ["PowerShell", "-Command"]
-    command     = "cd ${path.module}/angular-frontend; npm ci; npm run build -- --configuration production; aws s3 sync dist/angular-frontend/browser/ s3://${aws_s3_bucket.frontend.bucket}/ --delete"
+    command = "cd ${path.module}/angular-frontend; npm install --omit=dev; npm run build -- --configuration production; aws s3 sync dist/angular-frontend/browser/ s3://${aws_s3_bucket.frontend.bucket}/ --delete"
   }
 
   depends_on = [aws_s3_bucket_policy.frontend]
@@ -260,5 +260,69 @@ resource "aws_iam_role_policy" "lambda_s3_ics" {
 }
 
 #endregion
+
+#region CloudFront
+
+resource "aws_cloudfront_distribution" "frontend" {
+  enabled             = true
+  default_root_object = "index.html"
+  price_class         = "PriceClass_100"
+
+ origin {
+  domain_name = aws_s3_bucket_website_configuration.frontend.website_endpoint
+  origin_id   = "s3-frontend"
+
+  custom_origin_config {
+    http_port              = 80
+    https_port             = 443
+    origin_protocol_policy = "http-only"
+    origin_ssl_protocols   = ["TLSv1.2"]
+  }
+}
+
+  default_cache_behavior {
+    target_origin_id       = "s3-frontend"
+    viewer_protocol_policy = "redirect-to-https"
+    allowed_methods        = ["GET", "HEAD"]
+    cached_methods         = ["GET", "HEAD"]
+
+    forwarded_values {
+      query_string = false
+      cookies { forward = "none" }
+    }
+
+    min_ttl     = 0
+    default_ttl = 3600
+    max_ttl     = 86400
+  }
+
+  custom_error_response {
+    error_code         = 403
+    response_code      = 200
+    response_page_path = "/index.html"
+  }
+
+  custom_error_response {
+    error_code         = 404
+    response_code      = 200
+    response_page_path = "/index.html"
+  }
+
+  restrictions {
+    geo_restriction { restriction_type = "none" }
+  }
+
+  viewer_certificate {
+    cloudfront_default_certificate = true
+  }
+
+  depends_on = [aws_s3_bucket_policy.frontend]
+}
+
+output "cloudfront_url" {
+  value = "https://${aws_cloudfront_distribution.frontend.domain_name}"
+}
+
+#endregion CloudFront
 
 
