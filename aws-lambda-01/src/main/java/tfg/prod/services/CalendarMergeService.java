@@ -139,6 +139,11 @@ public class CalendarMergeService {
             if (contentEnd == -1) break;
             String ics = xml.substring(contentStart, contentEnd).trim();
             if (!ics.isBlank()) {
+                if (isCircular(ics)) {
+                    System.out.println("[CIRCULAR] Evento descartado: generado por TFG Calendar Merger");
+                    start = contentEnd + 1;
+                    continue;
+                }
                 MergedEvent ev = parseIcs(ics, source.getPrefix());
                 if (ev != null) {
                     if (source.getSuffix() != null && !source.getSuffix().isBlank())
@@ -209,6 +214,10 @@ public class CalendarMergeService {
                 return true;
         }
         return false;
+    }
+    private boolean isCircular(String icsContent) {
+        return icsContent != null &&
+            icsContent.contains("PRODID:-//TFG Calendar Merger//EN");
     }
     
  
