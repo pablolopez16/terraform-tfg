@@ -193,7 +193,7 @@ resource "null_resource" "frontend_deploy" {
 
   provisioner "local-exec" {
     interpreter = ["PowerShell", "-Command"]
-    command = "cd ${path.module}/angular-frontend; npm install --omit=dev; npm run build -- --configuration production; aws s3 sync dist/angular-frontend/browser/ s3://${aws_s3_bucket.frontend.bucket}/ --delete"
+    command = "cd ${path.module}/angular-frontend; npm install; ng build -- --configuration production; aws s3 sync dist/angular-frontend/browser/ s3://${aws_s3_bucket.frontend.bucket}/ --delete"
   }
 
   depends_on = [aws_s3_bucket_policy.frontend]
