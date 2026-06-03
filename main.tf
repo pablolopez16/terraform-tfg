@@ -17,6 +17,8 @@ resource "aws_lambda_function" "aws-lambda-tfg" {
      GOOGLE_CREDENTIALS_SECRET_ARN  = aws_secretsmanager_secret.google_credentials.arn
      FRONTEND_URL = "https://${aws_cloudfront_distribution.frontend.domain_name}"
      ICS_CACHE_BUCKET = aws_s3_bucket.aws-lambda-tfg-bucket.bucket
+     COGNITO_USER_POOL_ID = aws_cognito_user_pool.tfg.id
+     COGNITO_CLIENT_ID    = aws_cognito_user_pool_client.tfg.id
   }
 
   }
@@ -65,6 +67,8 @@ resource "aws_apigatewayv2_route" "api-gateaway-route" {
   route_key = "$default" // Para que Spring Boot gestione todas las rutas
   // De esta manera no hace falta crear muchos recursos uno para cada llamada
   target = "integrations/${aws_apigatewayv2_integration.lambda_integration.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
 }
 
 // Permissions for API Gateaway to invoke Lambda
